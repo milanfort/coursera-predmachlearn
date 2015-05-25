@@ -70,14 +70,15 @@ img {
 <div id="introduction" class="section level3">
 <h3>Introduction</h3>
 <p><a href="http://en.wikipedia.org/wiki/Activity_tracker">Activity trackers</a> are quickly becoming popular among people interested in improving their health and observing patterns in their behaviour. These devices are nowadays used mostly for measuring the <em>quantity</em> of a certain activity, such as number of steps taken during a certain time interval.</p>
-<p>As part of the <a href="http://groupware.les.inf.puc-rio.br/har">Human Activity Recognition</a> project, the researchers measured data from on-body sensors of five participants performing weight lifting excercise, and classified the <em>quality</em> of this activity.</p>
-<p>In this study, which is conducted as part of the <a href="https://www.coursera.org/course/predmachlearn">Practical Machine Learning</a> course on Coursera, we will analyze the dataset provided by the HAR research group and build a prediction model that correctly predicts the quality of the performed exercise for a given test set of 20 observations.</p>
+<p>As part of the <a href="http://groupware.les.inf.puc-rio.br/har">Human Activity Recognition</a> project, the researchers measured data from on-body sensors of six participants performing a weight lifting excercise in five different ways, and classified the <em>quality</em> of these activities.</p>
+<p>In this study, which is conducted as part of the <a href="https://www.coursera.org/course/predmachlearn">Practical Machine Learning</a> course on Coursera, we will analyse the dataset provided by the HAR research group and build a prediction model that correctly predicts the quality of the performed exercise for a given test set of 20 observations.</p>
 </div>
 <div id="data-cleaning-and-exploratory-data-analysis" class="section level3">
 <h3>Data Cleaning and Exploratory Data Analysis</h3>
 <p>First, we load the data provided as part of the course:</p>
-<pre class="r"><code>training &lt;- read.csv(&quot;pml-training.csv&quot;, stringsAsFactors = TRUE, na.strings = c(&quot;NA&quot;, &quot;&quot;))
-testing &lt;- read.csv(&quot;pml-testing.csv&quot;, stringsAsFactors = TRUE, na.strings = c(&quot;NA&quot;, &quot;&quot;))</code></pre>
+<pre class="r"><code>url &lt;- &quot;http://d396qusza40orc.cloudfront.net/predmachlearn/&quot;
+training &lt;- read.csv(paste0(url, &quot;pml-training.csv&quot;), stringsAsFactors = TRUE, na.strings = c(&quot;NA&quot;, &quot;&quot;))
+testing &lt;- read.csv(paste0(url, &quot;pml-testing.csv&quot;), stringsAsFactors = TRUE, na.strings = c(&quot;NA&quot;, &quot;&quot;))</code></pre>
 <p>The training dataset consists of <strong>19622 observations</strong> of <strong>160 variables</strong>. The first seven variables do not provide any useful information for prediction (e.g. number of observation, different timestamps, etc.). Hence, we remove them from the dataset:</p>
 <pre class="r"><code>trainingClean &lt;- training[, -c(1:7)]</code></pre>
 <p>Upon further analysis we see that some variables contain mostly NA values, which we eliminate as well:</p>
@@ -86,28 +87,27 @@ testing &lt;- read.csv(&quot;pml-testing.csv&quot;, stringsAsFactors = TRUE, na.
 }
 mostlyNaColumns &lt;- apply(trainingClean, 2, isMostlyNA)
 trainingClean &lt;- trainingClean[, !mostlyNaColumns]</code></pre>
-<p>The cleaned dataset that we will use for model building contains <strong>19622 observations</strong> of <strong>53 variables</strong>.</p>
+<p>The cleaned training dataset that we will use for model building contains <strong>19622 observations</strong> of <strong>53 variables</strong>.</p>
 </div>
 <div id="model-building-and-evaluation" class="section level3">
 <h3>Model Building and Evaluation</h3>
-<p>To build the model, we make use of the <a href="http://topepo.github.io/caret/">caret package</a> for the R language, which contains the function <em>train</em> that unifies the model building process and provides useful default values for <a href="http://topepo.github.io/caret/modelList.html">all supported models</a>.</p>
-<p>For this report, we employ the <a href="http://en.wikipedia.org/wiki/Random_forest">Random Forests algorithm</a>, which has proved to have very good performance in <a href="https://www.kaggle.com/competitions">Kaggle Competitions</a>.</p>
-<p>The train function supports multiple resampling methods such as (repeated) k-fold cross-validation, leave-one-out cross-validation, bootstrap, etc. The methods are used by the train function to determine which model performs best (please refer to <a href="http://topepo.github.io/caret/training.html#control">train method documentation</a> for more detailed information). In this report, we will use (simple) 10-fold cross-validation. The model fitting process will use accuracy to select the best model.</p>
-<pre class="r"><code>require(randomForest)
-require(caret)
-set.seed(1234)</code></pre>
-<pre class="r"><code>#fit &lt;- train(classe ~ .,
-#             data = trainingClean,
-#             method = &quot;rf&quot;,
-#             importance = TRUE,
-#             metric = &quot;Accuracy&quot;,
-#             trControl = trainControl(method = &quot;cv&quot;, number = 10),
-#             tuneGrid = data.frame(mtry = floor(sqrt(ncol(trainingClean)-1))),
-#             ntree = 25,
-#             prox = TRUE,
-#             allowParallel = TRUE)
-# saveRDS(fit, &quot;final-model.rds&quot;) 
-fit &lt;- readRDS(&quot;final-model.rds&quot;)
+<p>To build the model, we make use of the <em>train</em> method from R languages’s <a href="http://topepo.github.io/caret/">caret package</a>. This method unifies the model building process and provides useful default values for <a href="http://topepo.github.io/caret/modelList.html">all supported models</a>.</p>
+<p>For this report, we employ the <a href="http://en.wikipedia.org/wiki/Random_forest">Random Forests algorithm</a>, which has proved to have very good performance in <a href="https://www.kaggle.com/competitions">Kaggle competitions</a>. There are two main parameters that can be used to tune a random forests algorithm:</p>
+<ul>
+<li><p>The overall number of decision trees that will be built from samples of training data, denoted as <em>ntree</em> in the method invocation below. We use a relatively low value of 25 in order to decrease the model building time. In practice, the default value 500 would be more appropriate.</p></li>
+<li><p>The number of predictors that are randomly chosen for consideration at each split while building each decision tree, denoted as <em>mtry</em> below. We use the square root of the total number of predictors (7), as recommended in [2].</p></li>
+</ul>
+<p>The train function supports multiple resampling methods such as (repeated) K-fold cross-validation, Leave-One-Out cross-validation, Bootstrap, etc. These methods are used to determine the best-performing model (please refer to <a href="http://topepo.github.io/caret/training.html#control">train method documentation</a> for more detailed information). In this report, we use (simple) 10-fold cross-validation with accuracy as the selection criteria.</p>
+<pre class="r"><code>fit &lt;- train(classe ~ .,
+             data = trainingClean,
+             method = &quot;rf&quot;,
+             importance = TRUE,
+             metric = &quot;Accuracy&quot;,
+             trControl = trainControl(method = &quot;cv&quot;, number = 10),
+             tuneGrid = data.frame(mtry = floor(sqrt(ncol(trainingClean)-1))),
+             ntree = 25,
+             prox = TRUE,
+             allowParallel = TRUE)
 fit</code></pre>
 <pre><code>## Random Forest 
 ## 
@@ -143,7 +143,7 @@ fit</code></pre>
 ## C    3   27 3380   12    0 0.012273524
 ## D    2    0   33 3176    5 0.012437811
 ## E    1    1    4    9 3592 0.004158581</code></pre>
-<p>The overall prediction accuracy of the final model on the training data is:</p>
+<p>The output contains the expected out of sample error rate obtained through cross-validation. The overall prediction accuracy of the final model on the training data is:</p>
 <pre class="r"><code>sum(fit$finalModel$predicted == trainingClean$classe)/nrow(trainingClean)</code></pre>
 <pre><code>## [1] 0.9921517</code></pre>
 </div>

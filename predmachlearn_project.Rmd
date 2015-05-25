@@ -16,19 +16,22 @@ in their behaviour. These devices are nowadays used mostly for measuring the _qu
 a certain activity, such as number of steps taken during a certain time interval.
 
 As part of the [Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har) project,
-the researchers measured data from on-body sensors of five participants performing weight lifting excercise,
-and classified the _quality_ of this activity.
+the researchers measured data from on-body sensors of six participants performing a weight lifting excercise
+in five different ways, and classified the _quality_ of these activities.
 
-In this study, which is conducted as part of the [Practical Machine Learning](https://www.coursera.org/course/predmachlearn) course on Coursera, we will analyze the dataset provided by the HAR research group and build
-a prediction model that correctly predicts the quality of the performed exercise for a given test set of 20 observations.
+In this study, which is conducted as part of the
+[Practical Machine Learning](https://www.coursera.org/course/predmachlearn) course on Coursera,
+we will analyse the dataset provided by the HAR research group and build a prediction model
+that correctly predicts the quality of the performed exercise for a given test set of 20 observations.
 
 
 ### Data Cleaning and Exploratory Data Analysis
 
 First, we load the data provided as part of the course:
-```{r}
-training <- read.csv("pml-training.csv", stringsAsFactors = TRUE, na.strings = c("NA", ""))
-testing <- read.csv("pml-testing.csv", stringsAsFactors = TRUE, na.strings = c("NA", ""))
+```{r cache=TRUE}
+url <- "http://d396qusza40orc.cloudfront.net/predmachlearn/"
+training <- read.csv(paste0(url, "pml-training.csv"), stringsAsFactors = TRUE, na.strings = c("NA", ""))
+testing <- read.csv(paste0(url, "pml-testing.csv"), stringsAsFactors = TRUE, na.strings = c("NA", ""))
 ```
 The training dataset consists of **`r nrow(training)` observations** of **`r ncol(training)` variables**.
 The first seven variables do not provide any useful information for prediction (e.g. number of observation,
@@ -44,50 +47,58 @@ isMostlyNA <- function(values, threshold = 0.9) {
 mostlyNaColumns <- apply(trainingClean, 2, isMostlyNA)
 trainingClean <- trainingClean[, !mostlyNaColumns]
 ```
-The cleaned dataset that we will use for model building contains 
+The cleaned training dataset that we will use for model building contains 
 **`r nrow(trainingClean)` observations** of **`r ncol(trainingClean)` variables**.
 
 
 ### Model Building and Evaluation
 
-To build the model, we make use of the [caret package](http://topepo.github.io/caret/) for the R language,
-which contains the function _train_ that unifies the model building process and provides useful default 
+To build the model, we make use of the _train_ method from R languages's
+[caret package](http://topepo.github.io/caret/).
+This method unifies the model building process and provides useful default 
 values for [all supported models](http://topepo.github.io/caret/modelList.html).
 
 For this report, we employ the
 [Random Forests algorithm](http://en.wikipedia.org/wiki/Random_forest),
-which has proved to have very good performance in [Kaggle Competitions](https://www.kaggle.com/competitions).
+which has proved to have very good performance in [Kaggle competitions](https://www.kaggle.com/competitions).
+There are two main parameters that can be used to tune a random forests algorithm:
 
-The train function supports multiple resampling methods such as (repeated) k-fold cross-validation,
-leave-one-out cross-validation, bootstrap, etc. The methods are used by the train function to determine
-which model performs best (please refer to
+* The overall number of decision trees that will be built from samples of training data,
+denoted as _ntree_ in the method invocation below. We use a relatively low value of 25
+in order to decrease the model building time. In practice, the default value 500 would be more appropriate.
+
+* The number of predictors that are randomly chosen for consideration at each split while building each decision tree,
+denoted as _mtry_ below. We use the square root of the total number of predictors (7),
+as recommended in [2].
+
+The train function supports multiple resampling methods such as (repeated) K-fold cross-validation,
+Leave-One-Out cross-validation, Bootstrap, etc. These methods are used to determine
+the best-performing model (please refer to
 [train method documentation](http://topepo.github.io/caret/training.html#control) for more detailed information).
-In this report, we will use (simple) 10-fold cross-validation.
-The model fitting process will use accuracy to select the best model.
+In this report, we use (simple) 10-fold cross-validation with accuracy as the selection criteria.
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, echo=FALSE}
 require(randomForest)
 require(caret)
 set.seed(1234)
 ```
 
 ```{r}
-#fit <- train(classe ~ .,
-#             data = trainingClean,
-#             method = "rf",
-#             importance = TRUE,
-#             metric = "Accuracy",
-#             trControl = trainControl(method = "cv", number = 10),
-#             tuneGrid = data.frame(mtry = floor(sqrt(ncol(trainingClean)-1))),
-#             ntree = 25,
-#             prox = TRUE,
-#             allowParallel = TRUE)
-# saveRDS(fit, "final-model.rds") 
-fit <- readRDS("final-model.rds")
+fit <- train(classe ~ .,
+             data = trainingClean,
+             method = "rf",
+             importance = TRUE,
+             metric = "Accuracy",
+             trControl = trainControl(method = "cv", number = 10),
+             tuneGrid = data.frame(mtry = floor(sqrt(ncol(trainingClean)-1))),
+             ntree = 25,
+             prox = TRUE,
+             allowParallel = TRUE)
 fit
 fit$finalModel
 ```
 
+The output contains the expected out of sample error rate obtained through cross-validation.
 The overall prediction accuracy of the final model on the training data is:
 ```{r}
 sum(fit$finalModel$predicted == trainingClean$classe)/nrow(trainingClean)
