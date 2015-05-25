@@ -1,0 +1,132 @@
+---
+title: "Automatic Detection of Sports Training Quality using On-Body Sensors"
+author: "Milan Fort"
+date: "24.05.2015"
+geometry: 1cm
+output:
+  html_document:
+    theme: cerulean
+---
+
+### Introduction
+
+[Activity trackers](http://en.wikipedia.org/wiki/Activity_tracker) are quickly
+becoming popular among people interested in improving their health and observing patterns
+in their behaviour. These devices are nowadays used mostly for measuring the _quantity_ of
+a certain activity, such as number of steps taken during a certain time interval.
+
+As part of the [Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har) project,
+the researchers measured data from on-body sensors of five participants performing weight lifting excercise,
+and classified the _quality_ of this activity.
+
+In this study, which is conducted as part of the [Practical Machine Learning](https://www.coursera.org/course/predmachlearn) course on Coursera, we will analyze the dataset provided by the HAR research group and build
+a prediction model that correctly predicts the quality of the performed exercise for a given test set of 20 observations.
+
+
+### Data Cleaning and Exploratory Data Analysis
+
+First, we load the data provided as part of the course:
+```{r}
+training <- read.csv("pml-training.csv", stringsAsFactors = TRUE, na.strings = c("NA", ""))
+testing <- read.csv("pml-testing.csv", stringsAsFactors = TRUE, na.strings = c("NA", ""))
+```
+The training dataset consists of **`r nrow(training)` observations** of **`r ncol(training)` variables**.
+The first seven variables do not provide any useful information for prediction (e.g. number of observation,
+different timestamps, etc.). Hence, we remove them from the dataset:
+```{r}
+trainingClean <- training[, -c(1:7)]
+```
+Upon further analysis we see that some variables contain mostly NA values, which we eliminate as well:
+```{r}
+isMostlyNA <- function(values, threshold = 0.9) {
+    sum(is.na(values))/length(values) > threshold
+}
+mostlyNaColumns <- apply(trainingClean, 2, isMostlyNA)
+trainingClean <- trainingClean[, !mostlyNaColumns]
+```
+The cleaned dataset that we will use for model building contains 
+**`r nrow(trainingClean)` observations** of **`r ncol(trainingClean)` variables**.
+
+
+### Model Building and Evaluation
+
+To build the model, we make use of the [caret package](http://topepo.github.io/caret/) for the R language,
+which contains the function _train_ that unifies the model building process and provides useful default 
+values for [all supported models](http://topepo.github.io/caret/modelList.html).
+
+For this report, we employ the
+[Random Forests algorithm](http://en.wikipedia.org/wiki/Random_forest),
+which has proved to have very good performance in [Kaggle Competitions](https://www.kaggle.com/competitions).
+
+The train function supports multiple resampling methods such as (repeated) k-fold cross-validation,
+leave-one-out cross-validation, bootstrap, etc. The methods are used by the train function to determine
+which model performs best (please refer to
+[train method documentation](http://topepo.github.io/caret/training.html#control) for more detailed information).
+In this report, we will use (simple) 10-fold cross-validation.
+The model fitting process will use accuracy to select the best model.
+
+```{r message=FALSE, warning=FALSE}
+require(randomForest)
+require(caret)
+set.seed(1234)
+```
+
+```{r}
+#fit <- train(classe ~ .,
+#             data = trainingClean,
+#             method = "rf",
+#             importance = TRUE,
+#             metric = "Accuracy",
+#             trControl = trainControl(method = "cv", number = 10),
+#             tuneGrid = data.frame(mtry = floor(sqrt(ncol(trainingClean)-1))),
+#             ntree = 25,
+#             prox = TRUE,
+#             allowParallel = TRUE)
+# saveRDS(fit, "final-model.rds") 
+fit <- readRDS("final-model.rds")
+fit
+fit$finalModel
+```
+
+The overall prediction accuracy of the final model on the training data is:
+```{r}
+sum(fit$finalModel$predicted == trainingClean$classe)/nrow(trainingClean)
+```
+
+
+### Prediction
+
+We now use the model fitted in the previous section on the `r nrow(testing)` test observations provided as part
+of the course assignment, to obtain the predicted classes:
+```{r}
+(pred <- predict(fit, newdata = testing))
+```
+For this test set, the model predicted all `r length(pred)` classes correctly, which we have verified through
+course assignment submission page. We would expect the model to perform slighly worse on a real-world dataset.
+
+
+### Conclusion and Future Work
+
+In this article, we built a prediction model that classifies the quality of performing a fitness excercise
+using data from on-body sensors. The model has very hight prediction accuracy which leads us to believe
+that such approach could be used for effective training and prevension of injuries,
+without the need for professional trainer.
+
+The performance of the model could be further improved through feature reduction, i.e.
+by eliminating variables from the model that are either highly correlated with other variables,
+or that are not important. The importance of each variable could be determined using the existing model.
+
+Other machine learning algorithms, such as
+[Support Vector Machines](http://en.wikipedia.org/wiki/Support_vector_machine), could be tried as well to see
+if they have better performance than Random Forests used in this study.
+Finally, a combination of multiple models (model ensembling) could be employed to improve
+model performance even further.
+
+
+### References
+
+1. Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13). Stuttgart, Germany: ACM SIGCHI, 2013.
+
+2. James G.; Witten D.; Hastie T.; Tibshirani R. 
+An Introduction to Statistical Learning: with Applications in R.
+Springer Texts in Statistics. ISBN 9781461471387. Springer, 2013.
