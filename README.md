@@ -6,6 +6,7 @@ online course, a part of
 [Data Science Specialization](https://www.coursera.org/specializations/jhu-data-science)
 from Johns Hopkins University on Coursera.
 
-The task was to build a prediction model in R for classifying the quality of performed fitness excercise using data from on-body sensors. The full data analysis report 
-is available at 
+The task was to build a prediction model in R for classifying the quality of performed
+fitness exercise using data from on-body sensors.
+The full data analysis report is available at 
 [http://www.milanfort.com/training-quality-detection/](http://www.milanfort.com/training-quality-detection/).
